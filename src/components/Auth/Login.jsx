@@ -1,0 +1,160 @@
+import { Eye, EyeOff, Loader } from "lucide-react";
+import { useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { PasswordLockIconSVG } from "../../assets/SVGs/svgAuth";
+import { doLogin } from "../../redux/userSlice";
+import { postLogin } from "../../services/apiServices";
+import "./Auth.scss";
+
+export default function Login() {
+  const account = useSelector((state) => state.user.account);
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isShowPassword, setIsShowPassword] = useState(false);
+
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+
+  const validateEmail = (email) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+      );
+  };
+
+  const handleLogin = async () => {
+    try {
+      // validate
+      const isValidEmail = validateEmail(email);
+
+      if (!isValidEmail) {
+        toast.error("Invalid email");
+        emailRef.current?.parentElement.classList.add("incorrect");
+        return;
+      }
+
+      if (!password) {
+        toast.error("Must enter password");
+        passwordRef.current?.parentElement.classList.add("incorrect");
+        return;
+      }
+
+      setIsLoading(true);
+
+      // submit api
+      let res = await postLogin(email.trim(), password);
+      console.log("Login response:", res);
+
+      // Check if response exists and has data
+      if (res && res.data) {
+        dispatch(doLogin(res.data));
+        toast.success("Login successful!");
+        navigate("/");
+      } else {
+        toast.error(res?.detail || "Login failed");
+        emailRef.current?.parentElement.classList.add("incorrect");
+        passwordRef.current?.parentElement.classList.add("incorrect");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("An error occurred during login");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event && event.key === "Enter") {
+      handleLogin();
+    }
+  };
+
+  const handleInputChange = (event, setState, ref) => {
+    setState(event.target.value);
+    ref.current?.parentElement.classList.remove("incorrect");
+  };
+
+  return (
+    <div className="login-register-container">
+      <div className="wrapper h-screen space-y-6">
+        <h1 className="text-5xl font-black uppercase text-neutral">Login</h1>
+        <div className="login-register-form">
+          <div className="div-to-label">
+            <label htmlFor="email-input">
+              <span>@</span>
+            </label>
+            <input
+              type="email"
+              name="email"
+              id="email-input"
+              placeholder="Email"
+              value={email}
+              ref={emailRef}
+              onChange={(event) => handleInputChange(event, setEmail, emailRef)}
+            />
+          </div>
+          <div className="div-to-label relative">
+            <label htmlFor="password-input">
+              <PasswordLockIconSVG />
+            </label>
+            <input
+              name="password"
+              id="password-input"
+              placeholder="Password"
+              type={isShowPassword ? "text" : "password"}
+              value={password}
+              ref={passwordRef}
+              onChange={(event) =>
+                handleInputChange(event, setPassword, passwordRef)
+              }
+              onKeyDown={handleKeyDown}
+            />
+            {isShowPassword ? (
+              <span
+                className="icons-eye"
+                onClick={() => setIsShowPassword(false)}
+              >
+                <Eye className="text-black" />
+              </span>
+            ) : (
+              <span
+                className="icons-eye"
+                onClick={() => setIsShowPassword(true)}
+              >
+                <EyeOff className="text-black" />
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          className="btn btn-primary btn-wide"
+          onClick={handleLogin}
+          disabled={isLoading}
+        >
+          {isLoading && <Loader className="animate-spin text-blue-400" />}
+          <span>Login</span>
+        </button>
+        <p
+          className="btn btn-ghost link link-primary btn-wide"
+          onClick={() => navigate("/register")}
+        >
+          New here? Register an account
+        </p>
+        <button
+          className="btn btn-secondary btn-wide"
+          onClick={() => navigate("/")}
+        >
+          &#60;&#60; Back to Home page
+        </button>
+      </div>
+    </div>
+  );
+}
